@@ -101,6 +101,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--ink);height
   font-weight:600;opacity:0;transform:translateY(10px);transition:.3s;pointer-events:none;z-index:99;}
 #toast.show{opacity:1;transform:none;}
 .modal{position:fixed;inset:0;background:rgba(20,16,40,.55);display:flex;align-items:center;justify-content:center;z-index:100;}
+.modal[hidden]{display:none;}
 .modalbox{background:#fff;border-radius:18px;padding:28px;width:min(540px,92vw);max-height:90vh;overflow-y:auto;box-shadow:0 30px 80px rgba(0,0,0,.3);}
 .modalbox h2{font-family:'Fredoka';color:var(--pink);font-size:22px;margin-bottom:10px;}
 .modalbox a{color:var(--teal);font-weight:700;}
@@ -325,7 +326,6 @@ async function ghPut(path,content,sha,token){
 async function publish(){
   const token=localStorage.getItem(TKEY);
   if(!token){openToken();return;}
-  const btn=event&&event.target;if(btn)btn.disabled=true;
   try{
     toast('⏳ מפרסם…');
     const html=buildViewer(project);
@@ -335,9 +335,9 @@ async function publish(){
     }
     toast('✅ פורסם! המסך יתעדכן תוך כדקה');
   }catch(e){
-    if((''+e).includes('AUTH')){localStorage.removeItem(TKEY);toast('הטוקן לא תקין/חסר הרשאה — הזן מחדש');openToken();}
+    if((''+e).includes('AUTH')){toast('הטוקן חסר הרשאת Contents: Read and write — בדוק בהגדרות (⚙)');openToken();}
     else toast('שגיאה בפרסום: '+e.message);
-  }finally{if(btn)btn.disabled=false;}
+  }
 }
 
 /* ================== עזרי בסיס ================== */
