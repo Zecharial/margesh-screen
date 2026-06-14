@@ -100,6 +100,10 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--ink);height
 #toast{position:fixed;bottom:20px;right:20px;background:var(--ink);color:#fff;padding:12px 18px;border-radius:10px;
   font-weight:600;opacity:0;transform:translateY(10px);transition:.3s;pointer-events:none;z-index:99;}
 #toast.show{opacity:1;transform:none;}
+.modal{position:fixed;inset:0;background:rgba(20,16,40,.55);display:flex;align-items:center;justify-content:center;z-index:100;}
+.modalbox{background:#fff;border-radius:18px;padding:28px;width:min(540px,92vw);max-height:90vh;overflow-y:auto;box-shadow:0 30px 80px rgba(0,0,0,.3);}
+.modalbox h2{font-family:'Fredoka';color:var(--pink);font-size:22px;margin-bottom:10px;}
+.modalbox a{color:var(--teal);font-weight:700;}
 </style>
 </head>
 <body>
@@ -110,7 +114,9 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--ink);height
   <button class="btn ghost" onclick="loadProject()">📂 טעינת פרויקט</button>
   <button class="btn ghost" onclick="saveProject()">💾 שמירת פרויקט</button>
   <button class="btn ghost" onclick="fullPreview()">▶ תצוגה במסך מלא</button>
-  <button class="btn primary" onclick="exportScreen()">⬇ ייצוא קובץ למסך</button>
+  <button class="btn ghost" onclick="exportScreen()">⬇ הורדה</button>
+  <button class="btn ghost" title="הגדרות פרסום" onclick="openToken()">⚙</button>
+  <button class="btn primary" onclick="publish()">🚀 פרסם למסך</button>
 </div>
 
 <div id="main">
@@ -133,6 +139,30 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--ink);height
 </div>
 
 <div id="toast"></div>
+
+<!-- חלונית טוקן פרסום -->
+<div id="tokenModal" class="modal" hidden>
+  <div class="modalbox">
+    <h2>חיבור פרסום לאתר</h2>
+    <p class="hint" style="margin-bottom:14px;line-height:1.7">
+      כדי שכפתור <b>"פרסם"</b> יעדכן את המסך לבד, צריך פעם אחת <b>טוקן</b> (סיסמה אישית) של GitHub.
+      הוא נשמר רק בדפדפן הזה ולא נשלח לאף אחד.</p>
+    <ol class="hint" style="margin:0 18px 14px;line-height:1.9">
+      <li>פתח: <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">יצירת טוקן ב-GitHub ↗</a></li>
+      <li>שם כלשהו (למשל "margesh"), תוקף — לבחירתך.</li>
+      <li><b>Repository access</b> → "Only select repositories" → בחר <b>margesh-screen</b>.</li>
+      <li><b>Permissions</b> → <b>Contents</b> → <b>Read and write</b>.</li>
+      <li>לחץ <b>Generate token</b>, העתק והדבק כאן 👇</li>
+    </ol>
+    <input id="tokenInput" placeholder="github_pat_..." dir="ltr" style="width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-family:monospace;font-size:13px;">
+    <div class="row" style="margin-top:16px">
+      <button class="btn ghost" style="flex:1" onclick="closeToken()">ביטול</button>
+      <button class="btn primary" style="flex:1" onclick="saveToken()">שמור והתחבר</button>
+    </div>
+    <p id="tokenState" class="hint" style="margin-top:12px"></p>
+  </div>
+</div>
+
 <input type="file" id="fileLogo" accept="image/*" hidden>
 <input type="file" id="fileProj" accept="application/json" hidden>
 
@@ -256,8 +286,59 @@ document.getElementById('fileProj').onchange=e=>{const f=e.target.files[0];if(!f
   const r=new FileReader();r.onload=()=>{try{project=JSON.parse(r.result);sel=0;renderAll();persist();toast('פרויקט נטען');}catch(x){toast('קובץ לא תקין');}};r.readAsText(f);};
 
 /* ================== ייצוא קובץ המסך ================== */
-function exportScreen(){download('lobby-screen.html',buildViewer(project),'text/html');toast('קובץ המסך ירד — גרור אותו ל-Netlify');}
+function exportScreen(){download('lobby-screen.html',buildViewer(project),'text/html');toast('קובץ המסך ירד');}
 function fullPreview(){const w=window.open('','_blank');w.document.write(buildViewer(project));w.document.close();}
+
+/* ================== פרסום ישיר ל-GitHub Pages ================== */
+const GH={owner:'Zecharial',repo:'margesh-screen',branch:'main'};
+const TKEY='mr_gh_token';
+
+function openToken(){const m=document.getElementById('tokenModal');m.hidden=false;
+  document.getElementById('tokenInput').value=localStorage.getItem(TKEY)||'';
+  document.getElementById('tokenState').textContent=localStorage.getItem(TKEY)?'✅ מחובר. אפשר להחליף טוקן או לסגור.':'';}
+function closeToken(){document.getElementById('tokenModal').hidden=true;}
+function saveToken(){const v=document.getElementById('tokenInput').value.trim();
+  if(!v){toast('לא הוזן טוקן');return;}
+  localStorage.setItem(TKEY,v);closeToken();toast('הטוקן נשמר');publish();}
+
+function b64utf8(str){const bytes=new TextEncoder().encode(str);let bin='';
+  bytes.forEach(b=>bin+=String.fromCharCode(b));return btoa(bin);}
+
+async function ghGetSha(path,token){
+  const r=await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${path}?ref=${GH.branch}`,
+    {headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'}});
+  if(r.status===404)return null;
+  if(r.status===401||r.status===403)throw new Error('AUTH');
+  if(!r.ok)throw new Error('GET '+r.status);
+  return (await r.json()).sha;
+}
+async function ghPut(path,content,sha,token){
+  const body={message:'עדכון מצגת מהסטודיו',content:b64utf8(content),branch:GH.branch};
+  if(sha)body.sha=sha;
+  const r=await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${path}`,
+    {method:'PUT',headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'},
+     body:JSON.stringify(body)});
+  if(r.status===401||r.status===403)throw new Error('AUTH');
+  if(!r.ok)throw new Error('PUT '+path+' '+r.status);
+}
+
+async function publish(){
+  const token=localStorage.getItem(TKEY);
+  if(!token){openToken();return;}
+  const btn=event&&event.target;if(btn)btn.disabled=true;
+  try{
+    toast('⏳ מפרסם…');
+    const html=buildViewer(project);
+    for(const path of ['lobby-screen.html','index.html']){
+      const sha=await ghGetSha(path,token);
+      await ghPut(path,html,sha,token);
+    }
+    toast('✅ פורסם! המסך יתעדכן תוך כדקה');
+  }catch(e){
+    if((''+e).includes('AUTH')){localStorage.removeItem(TKEY);toast('הטוקן לא תקין/חסר הרשאה — הזן מחדש');openToken();}
+    else toast('שגיאה בפרסום: '+e.message);
+  }finally{if(btn)btn.disabled=false;}
+}
 
 /* ================== עזרי בסיס ================== */
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
