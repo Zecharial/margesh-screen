@@ -78,6 +78,7 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--ink);height
   background:#fff;color:var(--pink);padding:1.6cqh 4.5cqw;border-radius:999px;box-shadow:0 1.4cqh 4cqh rgba(0,0,0,.22);}
 .theme-pink .cta{color:var(--pink);}.theme-green .cta{color:var(--green);}.theme-teal .cta{color:var(--teal);}
 .slide .logo{position:absolute;top:4cqh;left:3cqw;height:15cqh;background:rgba(255,255,255,.92);padding:1.4cqh 1.6cqw;border-radius:1.6cqh;}
+.slide .cornerimg{position:absolute;width:30cqw;height:30cqw;bottom:-5cqw;right:-5cqw;border-radius:50%;object-fit:cover;border:.8cqw solid rgba(255,255,255,.92);box-shadow:0 1cqh 4cqh rgba(0,0,0,.28);z-index:3;}
 .slide .foot{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:flex-end;align-items:center;
   padding:1.8cqh 3cqw;font-size:2cqw;font-weight:600;font-family:'Fredoka';color:#fff;}
 .slide .foot .clk{display:flex;align-items:center;gap:.7cqw;}
@@ -98,6 +99,11 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--ink);height
 .hr{height:1px;background:var(--line);margin:18px 0;}
 .hint{font-size:12px;color:var(--muted);line-height:1.5;}
 .logoPrev{height:40px;margin-top:8px;border-radius:8px;border:1px solid var(--line);padding:4px;background:#fff;}
+.iconpick{display:flex;flex-wrap:wrap;gap:6px;}
+.iconpick .ic{min-width:42px;height:38px;padding:0 6px;border:1px solid var(--line);border-radius:9px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink);font-size:18px;transition:.12s;}
+.iconpick .ic:hover{border-color:#cfd1de;}
+.iconpick .ic.on{border-color:var(--pink);color:var(--pink);box-shadow:0 0 0 2px rgba(204,31,95,.15);}
+.iconpick .ic .x{font-size:12px;color:var(--muted);}
 #toast{position:fixed;bottom:20px;right:20px;background:var(--ink);color:#fff;padding:12px 18px;border-radius:10px;
   font-weight:600;opacity:0;transform:translateY(10px);transition:.3s;pointer-events:none;z-index:99;}
 #toast.show{opacity:1;transform:none;}
@@ -166,12 +172,23 @@ body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--ink);height
 </div>
 
 <input type="file" id="fileLogo" accept="image/*" hidden>
+<input type="file" id="fileCorner" accept="image/*" hidden>
 <input type="file" id="fileProj" accept="application/json" hidden>
 
 <script>
 /* ================== מצב ================== */
 const KEY='mr_studio_project_v1';
 const THEMES=['pink','green','teal','light'];
+const ICONS={
+  none:'',
+  phone:'<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" style="vertical-align:-.12em"><path d="M6.62 10.79c1.44 2.83 3.76 5.15 6.59 6.59l2.2-2.2c.28-.28.67-.36 1.02-.25 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.07 21 3 13.93 3 5c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>',
+  whatsapp:'<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" style="vertical-align:-.12em"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21 5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm5.8 14.02c-.24.68-1.42 1.31-1.95 1.36-.5.05-1.13.07-1.82-.11-.42-.13-.96-.31-1.65-.61-2.9-1.25-4.79-4.17-4.94-4.36-.14-.19-1.18-1.57-1.18-2.99 0-1.42.75-2.12 1.01-2.41.26-.29.57-.36.76-.36.19 0 .38 0 .55.01.18.01.41-.07.64.49.24.58.82 2 .89 2.14.07.14.12.31.02.5-.09.19-.14.31-.28.48-.14.17-.29.37-.42.5-.14.14-.28.28-.12.56.16.28.71 1.17 1.52 1.9 1.05.93 1.93 1.22 2.21 1.36.28.14.44.12.6-.07.17-.19.69-.81.88-1.09.18-.28.37-.23.62-.14.25.09 1.6.76 1.87.9.28.14.46.21.53.32.07.12.07.66-.17 1.34z"/></svg>',
+  web:'<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-.12em"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 2.6 15.4 0 18M12 3c-2.6 2.6-2.6 15.4 0 18"/></svg>',
+  pin:'<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" style="vertical-align:-.12em"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6.5a2.5 2.5 0 010 5z"/></svg>',
+  mail:'<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" style="vertical-align:-.12em"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="vertical-align:-.12em"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>'
+};
+const ICON_LABELS={none:'ללא',phone:'טלפון',whatsapp:'וואטסאפ',web:'אתר',pin:'מיקום',mail:'מייל',clock:'שעה'};
 let project=load() || {
   org:'מרכז רגש', tagline:'ילדים שאוהבים באמת', logo:'', defaultSeconds:9,
   slides:[
@@ -220,10 +237,11 @@ function renderPreview(){
   const theme=s.theme||'pink';
   p.innerHTML=`<div class="slide theme-${theme}">
     ${project.logo?`<img class="logo" src="${project.logo}">`:''}
+    ${s.img?`<img class="cornerimg" src="${s.img}">`:''}
     ${s.eyebrow?`<div class="eyebrow">${esc(s.eyebrow)}</div>`:''}
     ${s.title?`<div class="title">${esc(s.title)}</div>`:''}
     ${s.body?`<div class="body">${esc(s.body)}</div>`:''}
-    ${s.cta?`<div class="cta">📞 <span dir="ltr">${esc(s.cta)}</span></div>`:''}
+    ${s.cta?`<div class="cta">${ICONS[s.icon||'phone']||''}<span dir="ltr">${esc(s.cta)}</span></div>`:''}
     <div class="foot"><span class="clk"><svg viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="vertical-align:-.18em"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5V12l3 2"></path></svg> 10:24</span></div>
   </div>`;
 }
@@ -244,10 +262,17 @@ function renderProps(){
       <input id="f_title" value="${esc(s.title||'')}"></div>
     <div class="field"><label>טקסט הסבר</label>
       <textarea id="f_body">${esc(s.body||'')}</textarea></div>
-    <div class="field"><label>קריאה לפעולה (טלפון / אתר)</label>
+    <div class="field"><label>קריאה לפעולה (טלפון / אתר / כתובת)</label>
       <input id="f_cta" value="${esc(s.cta||'')}" dir="ltr"></div>
+    <div class="field"><label>אייקון לכפתור</label>
+      <div class="iconpick">
+        ${Object.keys(ICONS).map(k=>`<button class="ic ${(s.icon||'phone')===k?'on':''}" data-ic="${k}" title="${ICON_LABELS[k]}">${k==='none'?'<span class="x">ללא</span>':ICONS[k]}</button>`).join('')}
+      </div></div>
     <div class="field"><label>משך הצגה (שניות)</label>
       <input id="f_sec" type="number" min="2" max="60" value="${s.seconds||project.defaultSeconds}"></div>
+    <div class="field"><label>תמונת פינה (מציצה מימין-למטה)</label>
+      <button class="btn ghost" onclick="document.getElementById('fileCorner').click()">⬆ העלאת תמונה</button>
+      ${s.img?`<img class="logoPrev" src="${s.img}"><br><button class="btn ghost" style="margin-top:6px" onclick="rmImg()">הסר תמונה</button>`:'<div class="hint" style="margin-top:6px">תופיע בעיגול שחלקו בולט והשאר נבלע בפינה</div>'}</div>
     <div class="row">
       <button class="btn ghost" style="flex:1" onclick="dupSlide()">⧉ שכפל</button>
       <button class="btn danger" style="flex:1" onclick="delSlide()">🗑 מחק</button>
@@ -260,6 +285,8 @@ function renderProps(){
   `;
   // צבעים
   el.querySelectorAll('.themes .t').forEach(t=>t.onclick=()=>{s.theme=t.dataset.t;renderAll();persist();});
+  // אייקון לכפתור
+  el.querySelectorAll('.iconpick .ic').forEach(b=>b.onclick=()=>{s.icon=b.dataset.ic;renderAll();persist();});
   // שדות
   bind('f_eyebrow','eyebrow');bind('f_title','title');bind('f_body','body');bind('f_cta','cta');
   document.getElementById('f_sec').oninput=e=>{s.seconds=+e.target.value||project.defaultSeconds;renderList();renderPreview();persist();};
@@ -274,9 +301,12 @@ function dupSlide(){const s=JSON.parse(JSON.stringify(project.slides[sel]));proj
 function delSlide(){if(project.slides.length<=1){toast('חייב להישאר לפחות שקף אחד');return;}
   if(!confirm('למחוק את השקף?'))return;project.slides.splice(sel,1);sel=Math.max(0,sel-1);renderAll();persist();toast('נמחק');}
 function rmLogo(){project.logo='';renderAll();persist();}
+function rmImg(){project.slides[sel].img='';renderAll();persist();}
 
 document.getElementById('fileLogo').onchange=e=>{const f=e.target.files[0];if(!f)return;
   const r=new FileReader();r.onload=()=>{project.logo=r.result;renderAll();persist();toast('לוגו עודכן');};r.readAsDataURL(f);};
+document.getElementById('fileCorner').onchange=e=>{const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=()=>{project.slides[sel].img=r.result;renderAll();persist();toast('תמונת פינה נוספה');};r.readAsDataURL(f);e.target.value='';};
 
 /* ================== שמירה/טעינה כקובץ ================== */
 function saveProject(){download('margesh-project.json',JSON.stringify(project,null,2),'application/json');toast('הפרויקט נשמר');}
@@ -376,6 +406,7 @@ function buildViewer(P){
 .hearts svg{position:absolute;opacity:.16;animation:float linear infinite}
 @keyframes float{0%{transform:translateY(8cqh) rotate(-8deg)}50%{transform:translateY(-6cqh) rotate(8deg)}100%{transform:translateY(8cqh) rotate(-8deg)}}
 #logo{position:absolute;top:4cqh;left:3cqw;z-index:60;height:15cqh;background:rgba(255,255,255,.92);padding:1.4cqh 1.6cqw;border-radius:1.6cqh;filter:drop-shadow(0 .6cqh 1.8cqh rgba(0,0,0,.18))}
+.cornerimg{position:absolute;width:30cqw;height:30cqw;bottom:-5cqw;right:-5cqw;border-radius:50%;object-fit:cover;border:.8cqw solid rgba(255,255,255,.92);box-shadow:0 1cqh 4cqh rgba(0,0,0,.28);z-index:3}
 #progress{position:absolute;bottom:0;left:0;right:0;height:.7cqh;background:rgba(0,0,0,.08);z-index:50}#bar{height:100%;width:0;background:rgba(255,255,255,.9)}
 .on-light #bar{background:var(--pink)}
 #footer{position:absolute;bottom:0;left:0;right:0;z-index:40;display:flex;align-items:center;justify-content:flex-end;padding:1.8cqh 3cqw;color:#fff;font-weight:600;font-size:2cqw;background:linear-gradient(0deg,rgba(0,0,0,.18),transparent)}
@@ -388,11 +419,12 @@ ${P.logo?'<img id="logo" src="'+P.logo+'" alt="">':''}
 </div></div>
 <script>
 const D=${DATA};
+const ICONS=${JSON.stringify(ICONS)};
 const THEMES=['pink','green','teal'];const stage=document.getElementById('stage'),bar=document.getElementById('bar');
 function tick(){const n=new Date();document.querySelector('#clock .t').textContent=n.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}setInterval(tick,1000);tick();
 function hearts(){const w=document.createElement('div');w.className='hearts';for(let k=0;k<6;k++){const s=2+(k%3)*1.6;const ns='http://www.w3.org/2000/svg';const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('width',(s*1.2)+'cqw');svg.setAttribute('height',(s*1.2)+'cqw');const p=document.createElementNS(ns,'path');p.setAttribute('d','M12 21s-7.5-4.7-10-9.3C.3 8.4 2 5 5.2 5c2 0 3.2 1.1 3.8 2 .6-.9 1.8-2 3.8-2C16 5 17.7 8.4 16 11.7 13.5 16.3 12 21 12 21z');p.setAttribute('fill','#fff');svg.appendChild(p);svg.style.top=(8+(k*14)%80)+'%';svg.style.left=((k*23)%88)+'%';svg.style.animationDuration=(9+k*2)+'s';svg.style.animationDelay=(-k*1.7)+'s';w.appendChild(svg);}return w;}
 const els=D.slides.map((s,i)=>{const d=document.createElement('div');const t=s.theme||THEMES[i%3];d.className='slide theme-'+t;d.dataset.theme=t;d.appendChild(hearts());
-const x=document.createElement('div');x.innerHTML=(s.eyebrow?'<div class=eyebrow>'+s.eyebrow+'</div>':'')+(s.title?'<div class=title>'+s.title+'</div>':'')+(s.body?'<div class=body>'+s.body+'</div>':'')+(s.cta?'<div class=cta><span style="font-size:.9em">📞</span><span>'+s.cta+'</span></div>':'');
+const x=document.createElement('div');x.innerHTML=(s.img?'<img class=cornerimg src="'+s.img+'">':'')+(s.eyebrow?'<div class=eyebrow>'+s.eyebrow+'</div>':'')+(s.title?'<div class=title>'+s.title+'</div>':'')+(s.body?'<div class=body>'+s.body+'</div>':'')+(s.cta?'<div class=cta>'+(ICONS[s.icon||'phone']||'')+'<span>'+s.cta+'</span></div>':'');
 Array.from(x.children).forEach(c=>d.appendChild(c));stage.appendChild(d);return d;});
 let idx=-1;function show(i){els.forEach(e=>e.classList.remove('active'));const el=els[i];el.classList.add('active');document.getElementById('screen').classList.toggle('on-light',el.dataset.theme==='light');const sec=(D.slides[i].seconds||D.def);bar.style.transition='none';bar.style.width='0%';void bar.offsetWidth;bar.style.transition='width '+sec+'s linear';bar.style.width='100%';clearTimeout(window.__t);window.__t=setTimeout(next,sec*1000);}
 function next(){idx=(idx+1)%els.length;show(idx);}next();
