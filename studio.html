@@ -356,12 +356,16 @@ async function publish(){
   if(!token){openToken();return;}
   try{
     toast('⏳ מפרסם…');
-    const html=buildViewer(project);
+    const version=String(Date.now());
+    const html=buildViewer(project,version);
     for(const path of ['lobby-screen.html','index.html']){
       const sha=await ghGetSha(path,token);
       await ghPut(path,html,sha,token);
     }
-    toast('✅ פורסם! המסך יתעדכן תוך כדקה');
+    // חותמת הגרסה — לפיה המסך מזהה שצריך לרענן את עצמו
+    const vsha=await ghGetSha('version.json',token);
+    await ghPut('version.json',JSON.stringify({v:version}),vsha,token);
+    toast('✅ פורסם! המסך יתרענן לבד תוך כ-2 דקות');
   }catch(e){
     if((''+e).includes('AUTH')){toast('הטוקן חסר הרשאת Contents: Read and write — בדוק בהגדרות (⚙)');openToken();}
     else toast('שגיאה בפרסום: '+e.message);
@@ -377,7 +381,8 @@ function renderAll(){renderList();renderPreview();renderProps();}
 renderAll();
 
 /* ================== תבנית קובץ המסך (16:9 · לולאה אינסופית) ================== */
-function buildViewer(P){
+function buildViewer(P,version){
+  version=version||('b'+Date.now());
   const DATA=JSON.stringify({tagline:P.tagline,logo:P.logo||'',def:P.defaultSeconds||9,slides:P.slides});
   return `<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -420,6 +425,7 @@ ${P.logo?'<img id="logo" src="'+P.logo+'" alt="">':''}
 <script>
 const D=${DATA};
 const ICONS=${JSON.stringify(ICONS)};
+const VERSION=${JSON.stringify(version)};
 const THEMES=['pink','green','teal'];const stage=document.getElementById('stage'),bar=document.getElementById('bar');
 function tick(){const n=new Date();document.querySelector('#clock .t').textContent=n.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}setInterval(tick,1000);tick();
 function hearts(){const w=document.createElement('div');w.className='hearts';for(let k=0;k<6;k++){const s=2+(k%3)*1.6;const ns='http://www.w3.org/2000/svg';const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('width',(s*1.2)+'cqw');svg.setAttribute('height',(s*1.2)+'cqw');const p=document.createElementNS(ns,'path');p.setAttribute('d','M12 21s-7.5-4.7-10-9.3C.3 8.4 2 5 5.2 5c2 0 3.2 1.1 3.8 2 .6-.9 1.8-2 3.8-2C16 5 17.7 8.4 16 11.7 13.5 16.3 12 21 12 21z');p.setAttribute('fill','#fff');svg.appendChild(p);svg.style.top=(8+(k*14)%80)+'%';svg.style.left=((k*23)%88)+'%';svg.style.animationDuration=(9+k*2)+'s';svg.style.animationDelay=(-k*1.7)+'s';w.appendChild(svg);}return w;}
@@ -427,7 +433,10 @@ const els=D.slides.map((s,i)=>{const d=document.createElement('div');const t=s.t
 const x=document.createElement('div');x.innerHTML=(s.img?'<img class=cornerimg src="'+s.img+'">':'')+(s.eyebrow?'<div class=eyebrow>'+s.eyebrow+'</div>':'')+(s.title?'<div class=title>'+s.title+'</div>':'')+(s.body?'<div class=body>'+s.body+'</div>':'')+(s.cta?'<div class=cta>'+(ICONS[s.icon||'phone']||'')+'<span>'+s.cta+'</span></div>':'');
 Array.from(x.children).forEach(c=>d.appendChild(c));stage.appendChild(d);return d;});
 let idx=-1;function show(i){els.forEach(e=>e.classList.remove('active'));const el=els[i];el.classList.add('active');document.getElementById('screen').classList.toggle('on-light',el.dataset.theme==='light');const sec=(D.slides[i].seconds||D.def);bar.style.transition='none';bar.style.width='0%';void bar.offsetWidth;bar.style.transition='width '+sec+'s linear';bar.style.width='100%';clearTimeout(window.__t);window.__t=setTimeout(next,sec*1000);}
-function next(){idx=(idx+1)%els.length;show(idx);}next();
+function next(){if(window._pending){location.reload();return;}idx=(idx+1)%els.length;show(idx);}next();
+// בדיקת גרסה חדשה כל דקה — אם פורסם עדכון, ירוענן לבד במעבר השקף הבא
+window._pending=false;
+setInterval(function(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){if(j&&j.v&&String(j.v)!==VERSION)window._pending=true;}).catch(function(){});},60000);
 document.body.addEventListener('click',()=>{if(!document.fullscreenElement&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{});});
 <\/script></body></html>`;
 }
